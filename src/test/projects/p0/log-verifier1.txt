@@ -1,0 +1,15 @@
+[INFO] Error stacktraces are turned on.
+[INFO] Scanning for projects...
+[INFO]                                                                         
+[INFO] ------------------------------------------------------------------------
+[INFO] Building maven-verifier-project0 1.0-SNAPSHOT
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- maven-clean-plugin:2.5:clean (default-clean) @ p0 ---
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 0.070s
+[INFO] Finished at: Sat Dec 08 17:43:17 EST 2012
+[INFO] Final Memory: 8M/201M
+[INFO] ------------------------------------------------------------------------
