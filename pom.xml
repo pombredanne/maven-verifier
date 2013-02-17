@@ -28,7 +28,7 @@
 
   <groupId>io.tesla.maven</groupId>
   <artifactId>maven-verifier</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.1</version>
 
   <name>Maven Verifier Component</name>
   <description>Provides a test harness for Maven integration tests.</description>
