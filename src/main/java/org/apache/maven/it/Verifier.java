@@ -61,6 +61,7 @@ import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import junit.framework.Assert;
+
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
@@ -1444,6 +1445,11 @@ public class Verifier
 
         String version = extractMavenVersion( logLines );
 
+        if ( version == null ) 
+        {
+            version = extractTeslaVersion( logLines );
+        }
+        
         if ( version == null )
         {
             throw new VerificationException(
@@ -1455,12 +1461,12 @@ public class Verifier
             return version;
         }
     }
-
+    
     static String extractMavenVersion( List logLines )
     {
         String version = null;
 
-        final Pattern MAVEN_VERSION = Pattern.compile( "(?i).*Maven [^0-9]*([0-9]\\S*).*" );
+        final Pattern MAVEN_VERSION = Pattern.compile("(?i).*Maven [^0-9]*([0-9]\\S*).*");
 
         for ( Iterator it = logLines.iterator(); version == null && it.hasNext(); )
         {
@@ -1474,6 +1480,23 @@ public class Verifier
         }
 
         return version;
+    }
+
+    static String extractTeslaVersion(List logLines) {
+      String version = null;
+
+      final Pattern MAVEN_VERSION = Pattern.compile("(?i).*Tesla [^0-9]*([0-9]\\S*).*");
+
+      for (Iterator it = logLines.iterator(); version == null && it.hasNext();) {
+        String line = (String) it.next();
+
+        Matcher m = MAVEN_VERSION.matcher(line);
+        if (m.matches()) {
+          version = m.group(1);
+        }
+      }
+
+      return version;
     }
 
     private static String getLogContents( File logFile )
