@@ -59,7 +59,10 @@ class Embedded3xLauncher
         System.setProperty( "maven.home", mavenHome );
 
         File config = new File( mavenHome, "bin/m2.conf" );
-
+        if(config.exists() == false) {
+          config = new File( mavenHome, "conf/m2.conf" );
+        }  
+          
         ClassLoader bootLoader = getBootLoader( mavenHome );
 
         ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
