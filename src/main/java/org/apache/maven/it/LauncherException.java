@@ -22,18 +22,14 @@ package org.apache.maven.it;
 /**
  * @author Benjamin Bentmann
  */
-class LauncherException
-    extends Exception
-{
+class LauncherException extends Exception {
 
-    public LauncherException( String message )
-    {
-        super( message );
-    }
+  public LauncherException(String message) {
+    super(message);
+  }
 
-    public LauncherException( String message, Throwable cause )
-    {
-        super( message, cause );
-    }
+  public LauncherException(String message, Throwable cause) {
+    super(message, cause);
+  }
 
 }

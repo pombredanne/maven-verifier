@@ -40,180 +40,149 @@ import java.util.Properties;
  *
  * @author Benjamin Bentmann
  */
-class Embedded3xLauncher
-    implements MavenLauncher
-{
+class Embedded3xLauncher implements MavenLauncher {
 
-    private final Object mavenCli;
+  private final Object mavenCli;
 
-    private final Method doMain;
+  private final Method doMain;
 
-    public Embedded3xLauncher( String mavenHome )
-        throws LauncherException
-    {
-        if ( mavenHome == null || mavenHome.length() <= 0 )
-        {
-            throw new LauncherException( "Invalid Maven home directory " + mavenHome );
-        }
-
-        System.setProperty( "maven.home", mavenHome );
-
-        File config = new File( mavenHome, "bin/m2.conf" );
-        if(config.exists() == false) {
-          config = new File( mavenHome, "conf/m2.conf" );
-        }  
-          
-        ClassLoader bootLoader = getBootLoader( mavenHome );
-
-        ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
-        Thread.currentThread().setContextClassLoader( bootLoader );
-        try
-        {
-            Class launcherClass = bootLoader.loadClass( "org.codehaus.plexus.classworlds.launcher.Launcher" );
-
-            Object launcher = launcherClass.newInstance();
-
-            Method configure = launcherClass.getMethod( "configure", new Class[]{ InputStream.class } );
-
-            configure.invoke( launcher, new Object[]{ new FileInputStream( config ) } );
-
-            Method getWorld = launcherClass.getMethod( "getWorld", null );
-            Object classWorld = getWorld.invoke( launcher, null );
-
-            Method getMainClass = launcherClass.getMethod( "getMainClass", null );
-            Class cliClass = (Class) getMainClass.invoke( launcher, null );
-
-            Constructor newMavenCli = cliClass.getConstructor( new Class[]{ classWorld.getClass() } );
-            mavenCli = newMavenCli.newInstance( new Object[]{ classWorld } );
-
-            Class[] parameterTypes = { String[].class, String.class, PrintStream.class, PrintStream.class };
-            //Class[] parameterTypes = { String[].class, String.class };
-            doMain = cliClass.getMethod( "doMain", parameterTypes );
-        }
-        catch ( ClassNotFoundException e )
-        {
-            throw new LauncherException( "Invalid Maven home directory " + mavenHome, e );
-        }
-        catch ( InstantiationException e )
-        {
-            throw new LauncherException( "Invalid Maven home directory " + mavenHome, e );
-        }
-        catch ( IllegalAccessException e )
-        {
-            throw new LauncherException( "Invalid Maven home directory " + mavenHome, e );
-        }
-        catch ( NoSuchMethodException e )
-        {
-            throw new LauncherException( "Invalid Maven home directory " + mavenHome, e );
-        }
-        catch ( InvocationTargetException e )
-        {
-            throw new LauncherException( "Invalid Maven home directory " + mavenHome, e );
-        }
-        catch ( IOException e )
-        {
-            throw new LauncherException( "Invalid Maven home directory " + mavenHome, e );
-        }
-        finally
-        {
-            Thread.currentThread().setContextClassLoader( oldClassLoader );
-        }
+  public Embedded3xLauncher(String mavenHome) throws LauncherException {
+    if (mavenHome == null || mavenHome.length() <= 0) {
+      throw new LauncherException("Invalid Maven home directory " + mavenHome);
     }
 
-    private static ClassLoader getBootLoader( String mavenHome )
-    {
-        File bootDir = new File( mavenHome, "boot" );
+    System.setProperty("maven.home", mavenHome);
 
-        List urls = new ArrayList();
-
-        addUrls( urls, bootDir );
-
-        if ( urls.isEmpty() )
-        {
-            throw new IllegalArgumentException( "Invalid Maven home directory " + mavenHome );
-        }
-
-        URL[] ucp = (URL[]) urls.toArray( new URL[urls.size()] );
-
-        return new URLClassLoader( ucp, ClassLoader.getSystemClassLoader().getParent() );
+    File config = new File(mavenHome, "bin/m2.conf");
+    if (config.exists() == false) {
+      config = new File(mavenHome, "conf/m2.conf");
     }
 
-    private static void addUrls( List urls, File directory )
-    {
-        File[] jars = directory.listFiles();
+    ClassLoader bootLoader = getBootLoader(mavenHome);
 
-        if ( jars != null )
-        {
-            for ( int i = 0; i < jars.length; i++ )
-            {
-                File jar = jars[i];
+    ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(bootLoader);
+    try {
+      Class launcherClass = bootLoader.loadClass("org.codehaus.plexus.classworlds.launcher.Launcher");
 
-                if ( jar.getName().endsWith( ".jar" ) )
-                {
-                    try
-                    {
-                        urls.add( jar.toURI().toURL() );
-                    }
-                    catch ( MalformedURLException e )
-                    {
-                        throw (RuntimeException) new IllegalStateException().initCause( e );
-                    }
-                }
-            }
-        }
+      Object launcher = launcherClass.newInstance();
+
+      Method configure = launcherClass.getMethod("configure", new Class[] {
+        InputStream.class
+      });
+
+      configure.invoke(launcher, new Object[] {
+        new FileInputStream(config)
+      });
+
+      Method getWorld = launcherClass.getMethod("getWorld", null);
+      Object classWorld = getWorld.invoke(launcher, null);
+
+      Method getMainClass = launcherClass.getMethod("getMainClass", null);
+      Class cliClass = (Class) getMainClass.invoke(launcher, null);
+
+      Constructor newMavenCli = cliClass.getConstructor(new Class[] {
+        classWorld.getClass()
+      });
+      mavenCli = newMavenCli.newInstance(new Object[] {
+        classWorld
+      });
+
+      Class[] parameterTypes = {
+          String[].class, String.class, PrintStream.class, PrintStream.class
+      };
+      //Class[] parameterTypes = { String[].class, String.class };
+      doMain = cliClass.getMethod("doMain", parameterTypes);
+    } catch (ClassNotFoundException e) {
+      throw new LauncherException("Invalid Maven home directory " + mavenHome, e);
+    } catch (InstantiationException e) {
+      throw new LauncherException("Invalid Maven home directory " + mavenHome, e);
+    } catch (IllegalAccessException e) {
+      throw new LauncherException("Invalid Maven home directory " + mavenHome, e);
+    } catch (NoSuchMethodException e) {
+      throw new LauncherException("Invalid Maven home directory " + mavenHome, e);
+    } catch (InvocationTargetException e) {
+      throw new LauncherException("Invalid Maven home directory " + mavenHome, e);
+    } catch (IOException e) {
+      throw new LauncherException("Invalid Maven home directory " + mavenHome, e);
+    } finally {
+      Thread.currentThread().setContextClassLoader(oldClassLoader);
+    }
+  }
+
+  private static ClassLoader getBootLoader(String mavenHome) {
+    File bootDir = new File(mavenHome, "boot");
+
+    List urls = new ArrayList();
+
+    addUrls(urls, bootDir);
+
+    if (urls.isEmpty()) {
+      throw new IllegalArgumentException("Invalid Maven home directory " + mavenHome);
     }
 
-    public int run( String[] cliArgs, String workingDirectory, File logFile )
-        throws IOException, LauncherException
-    {
-        //
-        // At this point when run inside the verifier 
-        System.out.println(logFile);
-        PrintStream out = ( logFile != null ) ? new PrintStream( new FileOutputStream( logFile ) ) : System.out;
-        
-        for(String s : cliArgs) {
-            System.out.print(s + " ");            
-        }
-        System.out.println();
-        
-        try
-        {
-            Properties originalProperties = System.getProperties();
-            System.setProperties( null );
-            System.setProperty( "maven.home", originalProperties.getProperty( "maven.home", "" ) );
-            System.setProperty( "user.dir", new File( workingDirectory ).getAbsolutePath() );
+    URL[] ucp = (URL[]) urls.toArray(new URL[urls.size()]);
 
-            ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-            Thread.currentThread().setContextClassLoader( mavenCli.getClass().getClassLoader() );
-            try
-            {
-                Object result = doMain.invoke( mavenCli, new Object[]{ cliArgs, workingDirectory, out, out } );
-                //Object result = doMain.invoke( mavenCli, new Object[]{ cliArgs, workingDirectory } );
+    return new URLClassLoader(ucp, ClassLoader.getSystemClassLoader().getParent());
+  }
 
-                return ( (Number) result ).intValue();
-            }
-            finally
-            {
-                Thread.currentThread().setContextClassLoader( originalClassLoader );
+  private static void addUrls(List urls, File directory) {
+    File[] jars = directory.listFiles();
 
-                System.setProperties( originalProperties );
-            }
+    if (jars != null) {
+      for (int i = 0; i < jars.length; i++) {
+        File jar = jars[i];
+
+        if (jar.getName().endsWith(".jar")) {
+          try {
+            urls.add(jar.toURI().toURL());
+          } catch (MalformedURLException e) {
+            throw (RuntimeException) new IllegalStateException().initCause(e);
+          }
         }
-        catch ( IllegalAccessException e )
-        {
-            throw new LauncherException( "Failed to run Maven: " + e.getMessage(), e );
-        }
-        catch ( InvocationTargetException e )
-        {
-            throw new LauncherException( "Failed to run Maven: " + e.getMessage(), e );
-        }
-        finally
-        {
-            if ( logFile != null )
-            {
-                //out.close();
-            }
-        }
+      }
     }
+  }
+
+  public int run(String[] cliArgs, String workingDirectory, File logFile) throws IOException, LauncherException {
+    //
+    // At this point when run inside the verifier 
+    System.out.println(logFile);
+    PrintStream out = (logFile != null) ? new PrintStream(new FileOutputStream(logFile)) : System.out;
+
+    for (String s : cliArgs) {
+      System.out.print(s + " ");
+    }
+    System.out.println();
+
+    try {
+      Properties originalProperties = System.getProperties();
+      System.setProperties(null);
+      System.setProperty("maven.home", originalProperties.getProperty("maven.home", ""));
+      System.setProperty("user.dir", new File(workingDirectory).getAbsolutePath());
+
+      ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+      Thread.currentThread().setContextClassLoader(mavenCli.getClass().getClassLoader());
+      try {
+        // We need to set a timeout to make sure
+        Object result = doMain.invoke(mavenCli, new Object[] {
+            cliArgs, workingDirectory, out, out
+        });
+        return ((Number) result).intValue();
+      } finally {
+        Thread.currentThread().setContextClassLoader(originalClassLoader);
+
+        System.setProperties(originalProperties);
+      }
+    } catch (IllegalAccessException e) {
+      throw new LauncherException("Failed to run Maven: " + e.getMessage(), e);
+    } catch (InvocationTargetException e) {
+      throw new LauncherException("Failed to run Maven: " + e.getMessage(), e);
+    } finally {
+      if (logFile != null) {
+        //out.close();
+      }
+    }
+  }
 
 }

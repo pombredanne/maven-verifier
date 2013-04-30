@@ -33,87 +33,65 @@ import java.util.Properties;
  *
  * @author Benjamin Bentmann
  */
-class Classpath3xLauncher
-    implements MavenLauncher
-{
+class Classpath3xLauncher implements MavenLauncher {
 
-    private final Object mavenCli;
+  private final Object mavenCli;
 
-    private final Method doMain;
+  private final Method doMain;
 
-    public Classpath3xLauncher()
-        throws LauncherException
-    {
-        ClassLoader coreLoader = Thread.currentThread().getContextClassLoader();
+  public Classpath3xLauncher() throws LauncherException {
+    ClassLoader coreLoader = Thread.currentThread().getContextClassLoader();
 
-        try
-        {
-            Class cliClass = coreLoader.loadClass( "org.apache.maven.cli.MavenCli" );
+    try {
+      Class cliClass = coreLoader.loadClass("org.apache.maven.cli.MavenCli");
 
-            mavenCli = cliClass.newInstance();
+      mavenCli = cliClass.newInstance();
 
-            Class[] parameterTypes = { String[].class, String.class, PrintStream.class, PrintStream.class };
-            doMain = cliClass.getMethod( "doMain", parameterTypes );
-        }
-        catch ( ClassNotFoundException e )
-        {
-            throw new LauncherException( e.getMessage(), e );
-        }
-        catch ( NoSuchMethodException e )
-        {
-            throw new LauncherException( e.getMessage(), e );
-        }
-        catch ( InstantiationException e )
-        {
-            throw new LauncherException( e.getMessage(), e );
-        }
-        catch ( IllegalAccessException e )
-        {
-            throw new LauncherException( e.getMessage(), e );
-        }
+      Class[] parameterTypes = {
+          String[].class, String.class, PrintStream.class, PrintStream.class
+      };
+      doMain = cliClass.getMethod("doMain", parameterTypes);
+    } catch (ClassNotFoundException e) {
+      throw new LauncherException(e.getMessage(), e);
+    } catch (NoSuchMethodException e) {
+      throw new LauncherException(e.getMessage(), e);
+    } catch (InstantiationException e) {
+      throw new LauncherException(e.getMessage(), e);
+    } catch (IllegalAccessException e) {
+      throw new LauncherException(e.getMessage(), e);
     }
+  }
 
-    public int run( String[] cliArgs, String workingDirectory, File logFile )
-        throws IOException, LauncherException
-    {
-        PrintStream out = ( logFile != null ) ? new PrintStream( new FileOutputStream( logFile ) ) : System.out;
-        try
-        {
-            Properties originalProperties = System.getProperties();
-            System.setProperties( null );
-            System.setProperty( "maven.home", originalProperties.getProperty( "maven.home", "" ) );
-            System.setProperty( "user.dir", new File( workingDirectory ).getAbsolutePath() );
+  public int run(String[] cliArgs, String workingDirectory, File logFile) throws IOException, LauncherException {
+    PrintStream out = (logFile != null) ? new PrintStream(new FileOutputStream(logFile)) : System.out;
+    try {
+      Properties originalProperties = System.getProperties();
+      System.setProperties(null);
+      System.setProperty("maven.home", originalProperties.getProperty("maven.home", ""));
+      System.setProperty("user.dir", new File(workingDirectory).getAbsolutePath());
 
-            ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-            Thread.currentThread().setContextClassLoader( mavenCli.getClass().getClassLoader() );
-            try
-            {
-                Object result = doMain.invoke( mavenCli, new Object[]{ cliArgs, workingDirectory, out, out } );
+      ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+      Thread.currentThread().setContextClassLoader(mavenCli.getClass().getClassLoader());
+      try {
+        Object result = doMain.invoke(mavenCli, new Object[] {
+            cliArgs, workingDirectory, out, out
+        });
 
-                return ( (Number) result ).intValue();
-            }
-            finally
-            {
-                Thread.currentThread().setContextClassLoader( originalClassLoader );
+        return ((Number) result).intValue();
+      } finally {
+        Thread.currentThread().setContextClassLoader(originalClassLoader);
 
-                System.setProperties( originalProperties );
-            }
-        }
-        catch ( IllegalAccessException e )
-        {
-            throw new LauncherException( "Failed to run Maven: " + e.getMessage(), e );
-        }
-        catch ( InvocationTargetException e )
-        {
-            throw new LauncherException( "Failed to run Maven: " + e.getMessage(), e );
-        }
-        finally
-        {
-            if ( logFile != null )
-            {
-                out.close();
-            }
-        }
+        System.setProperties(originalProperties);
+      }
+    } catch (IllegalAccessException e) {
+      throw new LauncherException("Failed to run Maven: " + e.getMessage(), e);
+    } catch (InvocationTargetException e) {
+      throw new LauncherException("Failed to run Maven: " + e.getMessage(), e);
+    } finally {
+      if (logFile != null) {
+        out.close();
+      }
     }
+  }
 
 }

@@ -23,25 +23,19 @@ package org.apache.maven.it;
  * @author Jason van Zyl
  * @version $Id: VerificationException.java 609583 2008-01-07 12:18:57Z vsiveton $
  */
-public class VerificationException
-    extends Exception
-{
-    public VerificationException()
-    {
-    }
+public class VerificationException extends Exception {
+  public VerificationException() {
+  }
 
-    public VerificationException( String message )
-    {
-        super( message );
-    }
+  public VerificationException(String message) {
+    super(message);
+  }
 
-    public VerificationException( Throwable cause )
-    {
-        super( cause );
-    }
+  public VerificationException(Throwable cause) {
+    super(cause);
+  }
 
-    public VerificationException( String message, Throwable cause )
-    {
-        super( message, cause );
-    }
+  public VerificationException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

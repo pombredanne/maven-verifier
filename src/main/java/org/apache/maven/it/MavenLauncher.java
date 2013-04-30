@@ -25,10 +25,8 @@ import java.io.IOException;
 /**
  * @author Benjamin Bentmann
  */
-interface MavenLauncher
-{
+interface MavenLauncher {
 
-    int run( String[] cliArgs, String workingDirectory, File logFile )
-        throws IOException, LauncherException;
+  int run(String[] cliArgs, String workingDirectory, File logFile) throws IOException, LauncherException;
 
 }

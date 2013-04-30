@@ -24,29 +24,25 @@ import java.util.Arrays;
 
 import junit.framework.TestCase;
 
-public class VerifierTest
-    extends TestCase
-{
+public class VerifierTest extends TestCase {
 
-    public void testExtractMavenVersion()
-    {
-        assertEquals( "2.0.6",
-                      Verifier.extractMavenVersion( Arrays.asList( new String[]{ "Maven version: 2.0.6" } ) ) );
-        assertEquals( "2.0.10", Verifier.extractMavenVersion( Arrays.asList(
-            new String[]{ "Maven version: 2.0.10", "Java version: 1.5.0_22",
-                "OS name: \"windows 7\" version: \"6.1\" arch: \"x86\" Family: \"windows\"" } ) ) );
-        assertEquals( "3.0", Verifier.extractMavenVersion( Arrays.asList(
-            new String[]{ "Apache Maven 3.0 (r1004208; 2010-10-04 13:50:56+0200)", "Java version: 1.5.0_22",
-                "OS name: \"windows 7\" version: \"6.1\" arch: \"x86\" Family: \"windows\"" } ) ) );
-    }
+  public void testExtractMavenVersion() {
+    assertEquals("2.0.6", DefaultVerifier.extractMavenVersion(Arrays.asList(new String[] {
+      "Maven version: 2.0.6"
+    })));
+    assertEquals("2.0.10", DefaultVerifier.extractMavenVersion(Arrays.asList(new String[] {
+        "Maven version: 2.0.10", "Java version: 1.5.0_22", "OS name: \"windows 7\" version: \"6.1\" arch: \"x86\" Family: \"windows\""
+    })));
+    assertEquals("3.0", DefaultVerifier.extractMavenVersion(Arrays.asList(new String[] {
+        "Apache Maven 3.0 (r1004208; 2010-10-04 13:50:56+0200)", "Java version: 1.5.0_22", "OS name: \"windows 7\" version: \"6.1\" arch: \"x86\" Family: \"windows\""
+    })));
+  }
 
-    public void testFileInJarPresent()
-        throws VerificationException
-    {
-        File file = new File( "src/test/resources/mshared104.jar!fud.xml" );
-        Verifier verifier = new Verifier( "src/test/resources" );
-        verifier.assertFilePresent( "mshared104.jar!/pom.xml" );
-        verifier.assertFileNotPresent( "mshared104.jar!/fud.xml" );
-    }
+  public void testFileInJarPresent() throws VerificationException {
+    File file = new File("src/test/resources/mshared104.jar!fud.xml");
+    Verifier verifier = new DefaultVerifier("src/test/resources");
+    verifier.assertFilePresent("mshared104.jar!/pom.xml");
+    verifier.assertFileNotPresent("mshared104.jar!/fud.xml");
+  }
 
 }
