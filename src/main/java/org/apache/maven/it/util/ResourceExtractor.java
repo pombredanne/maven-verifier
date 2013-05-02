@@ -19,27 +19,69 @@ package org.apache.maven.it.util;
  * under the License.
  */
 
+import io.tesla.shell.maven.pom.Pom;
+import io.tesla.shell.maven.pom.Pominator;
+
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Enumeration;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import org.apache.maven.model.Dependency;
 import org.apache.maven.shared.utils.io.FileUtils;
 import org.apache.maven.shared.utils.io.IOUtil;
 
 /* @todo this can be replaced with plexus-archiver */
 public class ResourceExtractor {
 
-  public static File simpleExtractResources(Class cl, String resourcePath) throws IOException {
+  private static File junitTests = new File("/Users/jvanzyl/js/tesla/maven-integration-testing/core-it-suite/src/test/java/org/apache/maven/it");
+  private static File baseDirectory = new File("/tmp/maven-its/");
+  
+  public static File XsimpleExtractResources(Class cl, String resourcePath) throws IOException {
 
-    return null;
+    File itsDirectory = ResourceExtractor.extractResourcePath(cl, resourcePath, baseDirectory, true);
+    // Copy the unit test over
+    String javaFileName = cl.getSimpleName() + ".java";
+    File javaFile = new File( junitTests, javaFileName);
+    String javaFileContent = FileUtils.fileRead(javaFile);
+    javaFileContent = javaFileContent.replaceAll(".*File testDir.*", "");
+    javaFileContent = javaFileContent.replaceAll("import org.apache.maven.it.*", "");
+    javaFileContent = javaFileContent.replaceAll("testDir.getAbsolutePath\\(\\)", "System.getProperty(\"basedir\")");
+    System.out.println(javaFileContent);
+
+    File unitTest = new File(itsDirectory, "src/test/java/org/apache/maven/it/" + javaFileName);
+    unitTest.getParentFile().mkdirs();
+    Writer w = new FileWriter(unitTest);
+    IOUtil.copy(javaFileContent, w);
+    w.close();
+    //FileUtils.copyFile(javaFile, unitTest);
+    //
+    // Add dependencies to the POM. We need  the IT helper for the abstract test class, and the verifier
+    //
+    Pom p = new Pom(new File(itsDirectory, "pom.xml"));
+    p.addDependency("org.apache.maven.its:maven-it-helper:2.1-SNAPSHOT");
+    
+    Dependency d = new Dependency();
+    d.setGroupId("io.tesla.maven");
+    d.setArtifactId("maven-verifier");
+    d.setVersion("0.0.2-SNAPSHOT");
+    d.setScope("test");
+    p.addDependency(d);
+    
+    p.write();
+    return itsDirectory;
   }
 
-  public static File XsimpleExtractResources(Class cl, String resourcePath) throws IOException {
+  public static File simpleExtractResources(Class cl, String resourcePath) throws IOException {
     String tempDirPath = System.getProperty("maven.test.tmpdir", System.getProperty("java.io.tmpdir"));
     File tempDir = new File(tempDirPath);
 

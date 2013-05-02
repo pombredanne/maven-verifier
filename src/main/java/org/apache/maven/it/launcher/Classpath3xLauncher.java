@@ -1,4 +1,4 @@
-package org.apache.maven.it;
+package org.apache.maven.it.launcher;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -33,7 +33,7 @@ import java.util.Properties;
  *
  * @author Benjamin Bentmann
  */
-class Classpath3xLauncher implements MavenLauncher {
+public class Classpath3xLauncher implements MavenLauncher {
 
   private final Object mavenCli;
 

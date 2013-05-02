@@ -47,6 +47,11 @@ import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.maven.it.launcher.Classpath3xLauncher;
+import org.apache.maven.it.launcher.Embedded3xLauncher;
+import org.apache.maven.it.launcher.ForkedLauncher;
+import org.apache.maven.it.launcher.LauncherException;
+import org.apache.maven.it.launcher.MavenLauncher;
 import org.apache.maven.shared.utils.StringUtils;
 import org.apache.maven.shared.utils.cli.CommandLineException;
 import org.apache.maven.shared.utils.cli.CommandLineUtils;

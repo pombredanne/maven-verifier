@@ -1,4 +1,4 @@
-package org.apache.maven.it;
+package org.apache.maven.it.launcher;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -19,17 +19,14 @@ package org.apache.maven.it;
  * under the License.
  */
 
+import java.io.File;
+import java.io.IOException;
+
 /**
  * @author Benjamin Bentmann
  */
-class LauncherException extends Exception {
+public interface MavenLauncher {
 
-  public LauncherException(String message) {
-    super(message);
-  }
-
-  public LauncherException(String message, Throwable cause) {
-    super(message, cause);
-  }
+  int run(String[] cliArgs, String workingDirectory, File logFile) throws IOException, LauncherException;
 
 }

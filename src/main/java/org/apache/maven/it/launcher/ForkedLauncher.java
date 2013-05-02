@@ -1,4 +1,4 @@
-package org.apache.maven.it;
+package org.apache.maven.it.launcher;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -34,7 +34,7 @@ import org.apache.maven.shared.utils.cli.WriterStreamConsumer;
 /**
  * @author Benjamin Bentmann
  */
-class ForkedLauncher implements MavenLauncher {
+public class ForkedLauncher implements MavenLauncher {
 
   private final String mavenHome;
 
