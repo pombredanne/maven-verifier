@@ -24,12 +24,20 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.maven.shared.utils.StringUtils;
 import org.apache.maven.shared.utils.cli.CommandLineException;
 import org.apache.maven.shared.utils.cli.CommandLineUtils;
 import org.apache.maven.shared.utils.cli.Commandline;
 import org.apache.maven.shared.utils.cli.StreamConsumer;
 import org.apache.maven.shared.utils.cli.WriterStreamConsumer;
+import org.apache.maven.shared.utils.io.FileUtils;
 
 /**
  * @author Benjamin Bentmann
@@ -38,14 +46,17 @@ public class ForkedLauncher implements MavenLauncher {
 
   private final String mavenHome;
 
+  private final Map<String, String> envVars;
+
   private final String executable;
 
   public ForkedLauncher(String mavenHome) {
-    this(mavenHome, false);
+    this(mavenHome, Collections.<String, String> emptyMap(), false);
   }
 
-  public ForkedLauncher(String mavenHome, boolean debugJvm) {
+  public ForkedLauncher(String mavenHome, Map<String, String> envVars, boolean debugJvm) {
     this.mavenHome = mavenHome;
+    this.envVars = Collections.unmodifiableMap(new LinkedHashMap<String, String>(envVars));
 
     String script = debugJvm ? "mvnDebug" : "mvn";
 
@@ -56,7 +67,7 @@ public class ForkedLauncher implements MavenLauncher {
     }
   }
 
-  public int run(String[] cliArgs, Map envVars, String workingDirectory, File logFile) throws IOException, LauncherException {
+  public int run(String[] cliArgs, Map<String, String> envVars, String workingDirectory, File logFile) throws IOException, LauncherException {
     Commandline cmd = new Commandline();
 
     cmd.setExecutable(executable);
@@ -101,7 +112,75 @@ public class ForkedLauncher implements MavenLauncher {
   }
 
   public int run(String[] cliArgs, String workingDirectory, File logFile) throws IOException, LauncherException {
-    return run(cliArgs, Collections.EMPTY_MAP, workingDirectory, logFile);
+    return run(cliArgs, envVars, workingDirectory, logFile);
   }
 
+  public String getMavenVersion() throws IOException, LauncherException {
+    File logFile;
+    try {
+      logFile = File.createTempFile("maven", "log");
+    } catch (IOException e) {
+      throw new LauncherException("Error creating temp file", e);
+    }
+
+    try {
+      // disable EMMA runtime controller port allocation, should be harmless if EMMA is not used
+      Map<String, String> envVars = Collections.singletonMap("MAVEN_OPTS", "-Demma.rt.control=false");
+      run(new String[] {
+        "--version"
+      }, envVars, null, logFile);
+    } catch (IOException e) {
+      throw new LauncherException("IO Error communicating with commandline " + e.toString(), e);
+    }
+
+    List<String> logLines = FileUtils.loadFile(logFile);
+    //noinspection ResultOfMethodCallIgnored
+    logFile.delete();
+
+    String version = extractMavenVersion(logLines);
+
+    if (version == null) {
+      version = extractTeslaVersion(logLines);
+    }
+
+    if (version == null) {
+      throw new LauncherException("Illegal maven output: String 'Maven version: ' not found in the following output:\n" + StringUtils.join(logLines.iterator(), "\n"));
+    } else {
+      return version;
+    }
+  }
+
+  private static final Pattern MAVEN_VERSION = Pattern.compile("(?i).*Maven [^0-9]*([0-9]\\S*).*");
+
+  static String extractMavenVersion(List<String> logLines) {
+    String version = null;
+
+    for (Iterator<String> it = logLines.iterator(); version == null && it.hasNext();) {
+      String line = (String) it.next();
+
+      Matcher m = MAVEN_VERSION.matcher(line);
+      if (m.matches()) {
+        version = m.group(1);
+      }
+    }
+
+    return version;
+  }
+
+  static String extractTeslaVersion(List<String> logLines) {
+    String version = null;
+
+    final Pattern MAVEN_VERSION = Pattern.compile("(?i).*Tesla [^0-9]*([0-9]\\S*).*");
+
+    for (Iterator<String> it = logLines.iterator(); version == null && it.hasNext();) {
+      String line = (String) it.next();
+
+      Matcher m = MAVEN_VERSION.matcher(line);
+      if (m.matches()) {
+        version = m.group(1);
+      }
+    }
+
+    return version;
+  }
 }

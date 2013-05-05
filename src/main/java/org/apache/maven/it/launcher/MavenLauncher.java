@@ -29,4 +29,5 @@ public interface MavenLauncher {
 
   int run(String[] cliArgs, String workingDirectory, File logFile) throws IOException, LauncherException;
 
+  String getMavenVersion() throws IOException, LauncherException;
 }

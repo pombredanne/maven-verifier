@@ -44,10 +44,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.maven.it.launcher.Classpath3xLauncher;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import junit.framework.Assert;
+
 import org.apache.maven.it.launcher.Embedded3xLauncher;
 import org.apache.maven.it.launcher.ForkedLauncher;
 import org.apache.maven.it.launcher.LauncherException;
@@ -60,13 +64,6 @@ import org.apache.maven.shared.utils.cli.StreamConsumer;
 import org.apache.maven.shared.utils.cli.WriterStreamConsumer;
 import org.apache.maven.shared.utils.io.FileUtils;
 import org.apache.maven.shared.utils.io.IOUtil;
-
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
-
-import junit.framework.Assert;
-
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
@@ -113,6 +110,10 @@ public class DefaultVerifier implements Verifier {
 
   private String defaultMavenHome;
 
+  private String defaultClassworldConf;
+
+  private String defaultClasspath;
+
   // will launch mvn with --debug 
   private boolean mavenDebug = false;
 
@@ -146,9 +147,7 @@ public class DefaultVerifier implements Verifier {
     this.basedir = basedir;
 
     this.forkJvm = forkJvm;
-    this.
-
-    forkMode = System.getProperty("verifier.forkMode");
+    this.forkMode = System.getProperty("verifier.forkMode");
 
     if (!debug) {
       originalOut = System.out;
@@ -167,6 +166,9 @@ public class DefaultVerifier implements Verifier {
   }
 
   private void findDefaultMavenHome() throws VerificationException {
+    defaultClasspath = System.getProperty("maven.bootclasspath");
+    defaultClassworldConf = System.getProperty("classworlds.conf");
+
     defaultMavenHome = System.getProperty("maven.home");
 
     if (defaultMavenHome == null) {
@@ -1068,30 +1070,10 @@ public class DefaultVerifier implements Verifier {
     try {
       String[] cliArgs = args.toArray(new String[args.size()]);
 
-      boolean fork;
-      if (forkJvm != null) {
-        fork = forkJvm;
-      } else if (envVars.isEmpty() && "auto".equalsIgnoreCase(forkMode)) {
-        fork = false;
+      MavenLauncher launcher = getMavenLauncher(envVars);
 
-        try {
-          initEmbeddedLauncher();
-        } catch (Exception e) {
-          fork = true;
-        }
-      } else {
-        fork = true;
-      }
+      ret = launcher.run(cliArgs, getBasedir(), logFile);
 
-      if (!fork) {
-        initEmbeddedLauncher();
-
-        ret = embeddedLauncher.run(cliArgs, getBasedir(), logFile);
-      } else {
-        ForkedLauncher launcher = new ForkedLauncher(defaultMavenHome, debugJvm);
-
-        ret = launcher.run(cliArgs, envVars, getBasedir(), logFile);
-      }
     } catch (LauncherException e) {
       throw new VerificationException("Failed to execute Maven: " + e.getMessage(), e);
     } catch (IOException e) {
@@ -1106,87 +1088,72 @@ public class DefaultVerifier implements Verifier {
     }
   }
 
+  private MavenLauncher getMavenLauncher(Map envVars) throws LauncherException {
+    boolean fork;
+    if (forkJvm != null) {
+      fork = forkJvm;
+    } else if ((envVars.isEmpty() && "auto".equalsIgnoreCase(forkMode)) || "embedded".equalsIgnoreCase(forkMode)) {
+      fork = false;
+
+      try {
+        initEmbeddedLauncher();
+      } catch (Exception e) {
+        fork = true;
+      }
+    } else {
+      fork = true;
+    }
+
+    if (!fork) {
+      if (!envVars.isEmpty()) {
+        throw new LauncherException("Environment variables are not supported in embedded runtime");
+      }
+
+      initEmbeddedLauncher();
+
+      return embeddedLauncher;
+    } else {
+      if (System.getProperty("m2eclipse.workspace.state") != null) {
+        throw new LauncherException("m2e workspace resolution is not supported in forked mode");
+      }
+      return new ForkedLauncher(defaultMavenHome, envVars, debugJvm);
+    }
+  }
+
   private void initEmbeddedLauncher() throws LauncherException {
     if (embeddedLauncher == null) {
       if (StringUtils.isEmpty(defaultMavenHome)) {
-        embeddedLauncher = new Classpath3xLauncher();
+        embeddedLauncher = Embedded3xLauncher.createFromClasspath();
       } else {
-        embeddedLauncher = new Embedded3xLauncher(defaultMavenHome);
+        embeddedLauncher = Embedded3xLauncher.createFromMavenHome(defaultMavenHome, defaultClassworldConf, getClasspath());
       }
     }
+  }
+
+  private List<URL> getClasspath() throws LauncherException {
+    if (defaultClasspath == null) {
+      return null;
+    }
+    ArrayList<URL> classpath = new ArrayList<URL>();
+    StringTokenizer st = new StringTokenizer(defaultClasspath, File.pathSeparator);
+    while (st.hasMoreTokens()) {
+      try {
+        classpath.add(new File(st.nextToken()).toURI().toURL());
+      } catch (MalformedURLException e) {
+        throw new LauncherException("Invalid launcher classpath " + defaultClasspath, e);
+      }
+    }
+    return classpath;
   }
 
   public String getMavenVersion() throws VerificationException {
-    ForkedLauncher launcher = new ForkedLauncher(defaultMavenHome);
-
-    File logFile;
     try {
-      logFile = File.createTempFile("maven", "log");
-    } catch (IOException e) {
-      throw new VerificationException("Error creating temp file", e);
-    }
-
-    try {
-      // disable EMMA runtime controller port allocation, should be harmless if EMMA is not used
-      Map envVars = Collections.singletonMap("MAVEN_OPTS", "-Demma.rt.control=false");
-      launcher.run(new String[] {
-        "--version"
-      }, envVars, null, logFile);
+      return getMavenLauncher(Collections.emptyMap()).getMavenVersion();
     } catch (LauncherException e) {
-      throw new VerificationException("Error running commandline " + e.toString(), e);
+      throw new VerificationException(e);
     } catch (IOException e) {
-      throw new VerificationException("IO Error communicating with commandline " + e.toString(), e);
+      throw new VerificationException(e);
     }
-
-    List logLines = loadFile(logFile, false);
-    //noinspection ResultOfMethodCallIgnored
-    logFile.delete();
-
-    String version = extractMavenVersion(logLines);
-
-    if (version == null) {
-      version = extractTeslaVersion(logLines);
-    }
-
-    if (version == null) {
-      throw new VerificationException("Illegal maven output: String 'Maven version: ' not found in the following output:\n" + StringUtils.join(logLines.iterator(), "\n"));
-    } else {
-      return version;
-    }
-  }
-
-  static String extractMavenVersion(List logLines) {
-    String version = null;
-
-    final Pattern MAVEN_VERSION = Pattern.compile("(?i).*Maven [^0-9]*([0-9]\\S*).*");
-
-    for (Iterator it = logLines.iterator(); version == null && it.hasNext();) {
-      String line = (String) it.next();
-
-      Matcher m = MAVEN_VERSION.matcher(line);
-      if (m.matches()) {
-        version = m.group(1);
-      }
-    }
-
-    return version;
-  }
-
-  static String extractTeslaVersion(List logLines) {
-    String version = null;
-
-    final Pattern MAVEN_VERSION = Pattern.compile("(?i).*Tesla [^0-9]*([0-9]\\S*).*");
-
-    for (Iterator it = logLines.iterator(); version == null && it.hasNext();) {
-      String line = (String) it.next();
-
-      Matcher m = MAVEN_VERSION.matcher(line);
-      if (m.matches()) {
-        version = m.group(1);
-      }
-    }
-
-    return version;
   }
 
   private static String getLogContents(File logFile) {

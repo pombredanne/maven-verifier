@@ -35,8 +35,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.maven.shared.utils.io.IOUtil;
+
 /**
- * Launches an embedded Maven 3.x instance from some Maven installation directory.
+ * Launches Maven 3.x instance without forking external JVM.
  *
  * @author Benjamin Bentmann
  */
@@ -46,24 +48,77 @@ public class Embedded3xLauncher implements MavenLauncher {
 
   private final Method doMain;
 
-  public Embedded3xLauncher(String mavenHome) throws LauncherException {
+  private Embedded3xLauncher(Object mavenCli, Method doMain) {
+    this.mavenCli = mavenCli;
+    this.doMain = doMain;
+  }
+
+  protected Embedded3xLauncher(Embedded3xLauncher other) {
+    this.mavenCli = other.mavenCli;
+    this.doMain = other.doMain;
+  }
+
+  /**
+   * @deprecated use {@link #createFromMavenHome(String, String, List)} instead
+   */
+  public Embedded3xLauncher() throws LauncherException {
+    this(createFromClasspath());
+  }
+
+  /**
+   * Launches an embedded Maven 3.x instance from the current class path, i.e. the Maven 3.x dependencies are assumed to
+   * be present on the class path.
+   */
+  public static Embedded3xLauncher createFromClasspath() throws LauncherException {
+    ClassLoader coreLoader = Thread.currentThread().getContextClassLoader();
+
+    try {
+      Class<?> cliClass = coreLoader.loadClass("org.apache.maven.cli.MavenCli");
+
+      Object mavenCli = cliClass.newInstance();
+
+      Class<?>[] parameterTypes = {
+          String[].class, String.class, PrintStream.class, PrintStream.class
+      };
+      Method doMain = cliClass.getMethod("doMain", parameterTypes);
+      return new Embedded3xLauncher(mavenCli, doMain);
+    } catch (ClassNotFoundException e) {
+      throw new LauncherException(e.getMessage(), e);
+    } catch (NoSuchMethodException e) {
+      throw new LauncherException(e.getMessage(), e);
+    } catch (InstantiationException e) {
+      throw new LauncherException(e.getMessage(), e);
+    } catch (IllegalAccessException e) {
+      throw new LauncherException(e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Launches an embedded Maven 3.x instance from some Maven installation directory.
+   */
+  public static Embedded3xLauncher createFromMavenHome(String mavenHome, String classworldConf, List<URL> classpath) throws LauncherException {
     if (mavenHome == null || mavenHome.length() <= 0) {
       throw new LauncherException("Invalid Maven home directory " + mavenHome);
     }
 
     System.setProperty("maven.home", mavenHome);
 
-    File config = new File(mavenHome, "bin/m2.conf");
+    File config;
+    if (classworldConf != null) {
+      config = new File(classworldConf);
+    } else {
+      config = new File(mavenHome, "bin/m2.conf");
+    }
     if (config.exists() == false) {
       config = new File(mavenHome, "conf/m2.conf");
     }
 
-    ClassLoader bootLoader = getBootLoader(mavenHome);
+    ClassLoader bootLoader = getBootLoader(mavenHome, classpath);
 
     ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
     Thread.currentThread().setContextClassLoader(bootLoader);
     try {
-      Class launcherClass = bootLoader.loadClass("org.codehaus.plexus.classworlds.launcher.Launcher");
+      Class<?> launcherClass = bootLoader.loadClass("org.codehaus.plexus.classworlds.launcher.Launcher");
 
       Object launcher = launcherClass.newInstance();
 
@@ -75,24 +130,26 @@ public class Embedded3xLauncher implements MavenLauncher {
         new FileInputStream(config)
       });
 
-      Method getWorld = launcherClass.getMethod("getWorld", null);
-      Object classWorld = getWorld.invoke(launcher, null);
+      Method getWorld = launcherClass.getMethod("getWorld");
+      Object classWorld = getWorld.invoke(launcher);
 
-      Method getMainClass = launcherClass.getMethod("getMainClass", null);
-      Class cliClass = (Class) getMainClass.invoke(launcher, null);
+      Method getMainClass = launcherClass.getMethod("getMainClass");
+      Class<?> cliClass = (Class<?>) getMainClass.invoke(launcher);
 
-      Constructor newMavenCli = cliClass.getConstructor(new Class[] {
+      Constructor<?> newMavenCli = cliClass.getConstructor(new Class[] {
         classWorld.getClass()
       });
-      mavenCli = newMavenCli.newInstance(new Object[] {
+      Object mavenCli = newMavenCli.newInstance(new Object[] {
         classWorld
       });
 
-      Class[] parameterTypes = {
+      Class<?>[] parameterTypes = {
           String[].class, String.class, PrintStream.class, PrintStream.class
       };
       //Class[] parameterTypes = { String[].class, String.class };
-      doMain = cliClass.getMethod("doMain", parameterTypes);
+      Method doMain = cliClass.getMethod("doMain", parameterTypes);
+
+      return new Embedded3xLauncher(mavenCli, doMain);
     } catch (ClassNotFoundException e) {
       throw new LauncherException("Invalid Maven home directory " + mavenHome, e);
     } catch (InstantiationException e) {
@@ -110,12 +167,15 @@ public class Embedded3xLauncher implements MavenLauncher {
     }
   }
 
-  private static ClassLoader getBootLoader(String mavenHome) {
-    File bootDir = new File(mavenHome, "boot");
+  private static ClassLoader getBootLoader(String mavenHome, List<URL> classpath) {
+    List<URL> urls = classpath;
 
-    List urls = new ArrayList();
+    if (urls == null) {
+      urls = new ArrayList<URL>();
 
-    addUrls(urls, bootDir);
+      File bootDir = new File(mavenHome, "boot");
+      addUrls(urls, bootDir);
+    }
 
     if (urls.isEmpty()) {
       throw new IllegalArgumentException("Invalid Maven home directory " + mavenHome);
@@ -126,7 +186,7 @@ public class Embedded3xLauncher implements MavenLauncher {
     return new URLClassLoader(ucp, ClassLoader.getSystemClassLoader().getParent());
   }
 
-  private static void addUrls(List urls, File directory) {
+  private static void addUrls(List<URL> urls, File directory) {
     File[] jars = directory.listFiles();
 
     if (jars != null) {
@@ -185,4 +245,19 @@ public class Embedded3xLauncher implements MavenLauncher {
     }
   }
 
+  public String getMavenVersion() throws LauncherException {
+    Properties props = new Properties();
+
+    InputStream is = mavenCli.getClass().getResourceAsStream("/META-INF/maven/org.apache.maven/maven-core/pom.properties");
+    if (is != null) {
+      try {
+        props.load(is);
+      } catch (IOException e) {
+        throw new LauncherException("Failed to read Maven version", e);
+      }
+      IOUtil.close(is);
+    }
+
+    return props.getProperty("version", "unknown-version");
+  }
 }

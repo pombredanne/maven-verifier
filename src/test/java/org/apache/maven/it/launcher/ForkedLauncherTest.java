@@ -19,18 +19,21 @@ package org.apache.maven.it.launcher;
  * under the License.
  */
 
-/**
- * Launches an embedded Maven 3.x instance from the current class path, i.e. the Maven 3.x dependencies are assumed to
- * be present on the class path.
- *
- * @author Benjamin Bentmann
- * @deprecated Use {@link Embedded3xLauncher#createFromClasspath()}
- */
-public class Classpath3xLauncher extends Embedded3xLauncher implements MavenLauncher {
-  /**
-   * @deprecated Use {@link Classpath3xLauncher#createFromClasspath()}
-   */
-  public Classpath3xLauncher(String mavenHome) throws LauncherException {
-    super(createFromMavenHome(mavenHome, null, null));
+import java.util.Arrays;
+
+import junit.framework.TestCase;
+
+public class ForkedLauncherTest extends TestCase {
+  public void testExtractMavenVersion() {
+    assertEquals("2.0.6", ForkedLauncher.extractMavenVersion(Arrays.asList(new String[] {
+      "Maven version: 2.0.6"
+    })));
+    assertEquals("2.0.10", ForkedLauncher.extractMavenVersion(Arrays.asList(new String[] {
+        "Maven version: 2.0.10", "Java version: 1.5.0_22", "OS name: \"windows 7\" version: \"6.1\" arch: \"x86\" Family: \"windows\""
+    })));
+    assertEquals("3.0", ForkedLauncher.extractMavenVersion(Arrays.asList(new String[] {
+        "Apache Maven 3.0 (r1004208; 2010-10-04 13:50:56+0200)", "Java version: 1.5.0_22", "OS name: \"windows 7\" version: \"6.1\" arch: \"x86\" Family: \"windows\""
+    })));
   }
+
 }
