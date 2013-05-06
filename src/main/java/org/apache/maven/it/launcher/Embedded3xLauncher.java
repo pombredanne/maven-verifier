@@ -249,6 +249,11 @@ public class Embedded3xLauncher implements MavenLauncher {
     Properties props = new Properties();
 
     InputStream is = mavenCli.getClass().getResourceAsStream("/META-INF/maven/org.apache.maven/maven-core/pom.properties");
+    // Look for the metadata in the Tesla location as well
+    if (is == null) {
+      is = mavenCli.getClass().getResourceAsStream("/META-INF/maven/io.tesla.maven/maven-core/pom.properties");      
+    }
+    
     if (is != null) {
       try {
         props.load(is);
